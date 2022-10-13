@@ -1,0 +1,54 @@
+---
+- name: Create privatebin link
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars_prompt:
+
+    - name: username
+      prompt: What is the System username?
+      private: no
+
+    - name: userpassword
+      prompt: What is your System password?
+
+    - name: pbpassword
+      prompt: What is your PrivateBin password (should not be system password)?
+
+    - name: nenvironment
+      prompt: What is your System environment (dev-lts,dev-sts,ci-lts,ci-sts)?
+      private: no
+
+
+  tasks:
+
+    - name: Install pbincli python package
+      ansible.builtin.pip:
+        executable: pip3
+        name: pbincli
+
+    - name: Template files
+      ansible.builtin.template:
+        src: '{{ nenvironment }}.j2'
+        dest: '{{ nenvironment }}.txt'
+
+
+    - name: Run a pbincli command
+      ansible.builtin.command: 'pbincli send -E 1week --password {{ pbpassword }} --burn -s https://privatebin.internal.com -t "download the attachment" --file {{ nenvironment }}.txt'
+      register: result
+
+    - name: 'Remove file (delete file {{ nenvironment }}.txt)'
+      ansible.builtin.file:
+        path: '{{ nenvironment }}.txt'
+        state: absent
+
+    - name: Show link
+      ansible.builtin.debug:
+        msg:
+          - "{{ result.stdout_lines[7] | replace('\t\t',' ')  }}"
+          - "Send above link and the PrivateBin password to user"
+          - "Also privatebin message is burned after it is read"
+
+    
+
